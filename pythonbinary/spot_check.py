@@ -10,6 +10,8 @@ from packaging.markers import Marker
 from packaging.specifiers import Specifier
 from packaging.version import Version
 
+from pythonbinary import resource
+
 
 class PyBI(NamedTuple):
     impl: str
@@ -54,13 +56,14 @@ PLATFORM_TAG_TO_SYS_PLATFORM = {
 
 MODULES: tuple[Module, ...] = (
     Module('ctypes'),
-    Module('hashlib'),
+    # TODO: FIPS (no md5, etc.)
+    Module('hashlib'),  # do hashing with sha256
     Module('lzma'),
     Module('sqlite3'),
-    Module('ssl'),
+    Module('ssl'),  # make an ssl request
     Module('tkinter'),
     Module('uuid'),  # TODO: run a test on the particular function
-    Module('venv'),  # TODO: make sure we can create a venv
+    Module('venv'),
     Module('zlib'),
     # not on windows
     Module('curses', marker=Marker('sys_platform!="win32"')),
@@ -91,6 +94,29 @@ def test_imports(exe: str, info: PyBI) -> None:
     subprocess.check_call((exe, '-c', import_str))
 
 
+def test_venv(exe: str, info: PyBI) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        subprocess.check_call((exe, '-mvenv', tmpdir))
+
+        if info.platform in {'win32', 'win_amd64'}:
+            bin_dir = 'Scripts'
+            suffix = '.exe'
+        else:
+            bin_dir = 'bin'
+            suffix = ''
+
+        pip = (os.path.join(tmpdir, bin_dir, f'python{suffix}'), '-mpip')
+        whl = resource.filename('astpretty-2.1.0-py2.py3-none-any.whl')
+        subprocess.check_call((*pip, 'install', '-q', whl))
+
+        t_py = os.path.join(tmpdir, 't.py')
+        with open(t_py, 'w') as f:
+            f.write('x\n')
+
+        cmd = (os.path.join(tmpdir, bin_dir, f'astpretty{suffix}'), t_py)
+        subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
+
+
 def _header(s: str) -> None:
     print(f' {s} '.center(79, '='))
 
@@ -99,6 +125,8 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('zip')
     args = parser.parse_args()
+
+    os.environ['PIP_DISABLE_PIP_VERSION_CHECK'] = '1'
 
     _header('zip info')
     info = PyBI.parse(args.zip)
@@ -115,6 +143,9 @@ def main() -> int:
 
         _header(test_imports.__name__)
         test_imports(exe, info)
+
+        _header(test_venv.__name__)
+        test_venv(exe, info)
 
     return 0
 
