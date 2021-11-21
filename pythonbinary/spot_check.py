@@ -55,8 +55,9 @@ MODULES: tuple[Module, ...] = (
     # not on windows
     Module('curses', marker=Marker('sys_platform!="win32"')),
     Module('readline', marker=Marker('sys_platform!="win32"')),
-    Module('dbm.gnu', marker=Marker('sys_platform!="win32"')),
     Module('dbm.ndbm', marker=Marker('sys_platform!="win32"')),
+    # only on linux
+    Module('dbm.gnu', marker=Marker('sys_platform=="linux"')),
     # version specific
 
     # uuid is available on non-windows platform or on windows starting in 3.9
