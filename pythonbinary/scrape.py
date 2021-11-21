@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import html.parser
 import os
@@ -10,6 +11,8 @@ import tempfile
 import urllib.parse
 import urllib.request
 from typing import NamedTuple
+
+import httpx
 
 from pythonbinary import add_pip
 from pythonbinary import spot_check
@@ -57,11 +60,13 @@ class GetsAHrefs(html.parser.HTMLParser):
             self.links.append(Link.parse(self.base, href))
 
 
-def _do_build(link: Link, out_dir: str) -> None:
+def _do_build(link: Link, out_dir: str) -> str:
+    pybi_name = os.path.basename(link.path)
+
     with tempfile.TemporaryDirectory() as tmpdir:
-        tmp_pybi = os.path.join(tmpdir, os.path.basename(link.path))
+        tmp_pybi = os.path.join(tmpdir, pybi_name)
         os.makedirs(os.path.join(tmpdir, 'out'))
-        dest = os.path.join(tmpdir, 'out', os.path.basename(link.path))
+        dest = os.path.join(tmpdir, 'out', pybi_name)
 
         print('==> downloading...')
         resp = urllib.request.urlopen(link.path)
@@ -85,6 +90,60 @@ def _do_build(link: Link, out_dir: str) -> None:
 
         shutil.copy(dest, out_dir)
 
+    return os.path.join(out_dir, pybi_name)
+
+
+class Release(NamedTuple):
+    tag: str
+    upload_url: str
+    assets: frozenset[PyBI]
+
+    def upload_url_path(self, filename: str) -> str:
+        expected_end = '{?name,label}'
+        if not self.upload_url.endswith(expected_end):
+            raise AssertionError(f'unexpected upload_url {self.upload_url=}')
+
+        # TODO: removesuffix
+        base = self.upload_url[:-1 * len(expected_end)]
+        params = urllib.parse.urlencode({'name': filename})
+        return f'{base}?{params}'
+
+
+@functools.lru_cache
+def _get_or_create_release(tag: str, *, token: str) -> Release:
+    auth = {'Authorization': f'token {token}'}
+
+    url = f'https://api.github.com/repos/ksamuel/pythonbinary/releases/tags/{tag}'  # noqa: E501
+    release = httpx.get(url, headers=auth)
+
+    try:
+        release.raise_for_status()
+    except httpx.HTTPStatusError:
+        url = 'https://api.github.com/repos/ksamuel/pythonbinary/releases'
+        data = {'tag_name': tag, 'name': tag}
+        release = httpx.post(url, json=data, headers=auth)
+        release.raise_for_status()
+
+    json_response = release.json()
+
+    assets = frozenset(
+        PyBI.parse(asset['name'])
+        for asset in json_response['assets']
+    )
+    return Release(tag, json_response['upload_url'], assets)
+
+
+def _upload_artifact(release: Release, filename: str, *, token: str) -> None:
+    with open(filename, 'rb') as f:
+        httpx.post(
+            release.upload_url_path(os.path.basename(filename)),
+            headers={
+                'Authorization': f'token {token}',
+                'Content-Type': 'application/zip',
+            },
+            content=f.read(),
+        )
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -104,21 +163,26 @@ def main() -> int:
     href_parser = GetsAHrefs(URL)
     href_parser.feed(contents)
 
-    # simulate an incremental update
-    # del href_parser.links[58:]
-
     os.makedirs(args.out_dir, exist_ok=True)
-    already_built = {PyBI.parse(s) for s in os.listdir(args.out_dir)}
+
+    token = os.environ['GH_TOKEN']
 
     for link in href_parser.links:
         info = PyBI.parse(link.path)
         if info.platform not in platforms:
             continue
 
-        if info not in already_built:
+        release_tag = f'v{info.version}'
+        release = _get_or_create_release(release_tag, token=token)
+
+        if info not in release.assets:
             print(f'building {info}...')
 
-            _do_build(link, args.out_dir)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                filename = _do_build(link, tmpdir)
+                _upload_artifact(release, filename, token=token)
+        else:
+            print(f'skipped {info}!')
 
     return 0
 
