@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html.parser
-import json
+import os
+import shutil
+import sys
+import tempfile
 import urllib.parse
 import urllib.request
 from typing import NamedTuple
+
+from pythonbinary import add_pip
+from pythonbinary import spot_check
+from pythonbinary.pybi import PyBI
+from pythonbinary.spot_check import PLATFORM_TAG_TO_SYS_PLATFORM
 
 URL = 'https://pybi.vorpus.org/cpython_unofficial/'
 
@@ -48,9 +57,46 @@ class GetsAHrefs(html.parser.HTMLParser):
             self.links.append(Link.parse(self.base, href))
 
 
+def _do_build(link: Link, out_dir: str) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_pybi = os.path.join(tmpdir, os.path.basename(link.path))
+        os.makedirs(os.path.join(tmpdir, 'out'))
+        dest = os.path.join(tmpdir, 'out', os.path.basename(link.path))
+
+        print('==> downloading...')
+        resp = urllib.request.urlopen(link.path)
+
+        with open(tmp_pybi, 'wb') as f:
+            shutil.copyfileobj(resp, f)
+
+        h = hashlib.new(link.hash_algorithm)
+        with open(tmp_pybi, 'rb') as f:
+            while (bts := f.read()):
+                h.update(bts)
+
+        if h.hexdigest() != link.hash_value:
+            raise AssertionError(f'hash mismatch {h.hexdigest()} {link=}')
+
+        print('==> updating...')
+        add_pip.main((tmp_pybi, dest))
+
+        print('==> testing...')
+        spot_check.main((dest,))
+
+        shutil.copy(dest, out_dir)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.parse_args()
+    parser.add_argument('out_dir')
+    args = parser.parse_args()
+
+    # slightly imprecise, should do better platform detection
+    platforms = {
+        k
+        for k, v in PLATFORM_TAG_TO_SYS_PLATFORM.items()
+        if v == sys.platform
+    }
 
     resp = urllib.request.urlopen(URL)
     contents = resp.read().decode()
@@ -58,8 +104,21 @@ def main() -> int:
     href_parser = GetsAHrefs(URL)
     href_parser.feed(contents)
 
-    as_json = [link._asdict() for link in href_parser.links]
-    print(json.dumps(as_json, indent=2))
+    # simulate an incremental update
+    # del href_parser.links[58:]
+
+    os.makedirs(args.out_dir, exist_ok=True)
+    already_built = {PyBI.parse(s) for s in os.listdir(args.out_dir)}
+
+    for link in href_parser.links:
+        info = PyBI.parse(link.path)
+        if info.platform not in platforms:
+            continue
+
+        if info not in already_built:
+            print(f'building {info}...')
+
+            _do_build(link, args.out_dir)
 
     return 0
 

@@ -4,15 +4,16 @@ import argparse
 import os.path
 import subprocess
 import tempfile
+from typing import Sequence
 
 from pythonbinary.pybi import PyBI
 
 
-def main() -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('zip')
     parser.add_argument('out')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # ensure our output is an absolute path
     args.out = os.path.abspath(args.out)
