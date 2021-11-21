@@ -177,8 +177,6 @@ def main() -> int:
 
     token = os.environ['GH_TOKEN']
 
-    del href_parser.links[55:]
-
     for link in href_parser.links:
         info = PyBI.parse(link.path)
         if info.platform not in platforms:
