@@ -34,3 +34,6 @@ class PyBI(NamedTuple):
             return f'{s}.exe'
         else:
             return s
+
+    def python(self, root: str) -> str:
+        return os.path.join(root, self.bin_dir, self.exe('python'))

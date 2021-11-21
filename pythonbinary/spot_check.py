@@ -84,7 +84,7 @@ def test_venv(exe: str, info: PyBI) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         subprocess.check_call((exe, '-mvenv', tmpdir))
 
-        pip = (os.path.join(tmpdir, info.bin_dir, info.exe('python')), '-mpip')
+        pip = (info.python(tmpdir), '-mpip')
         whl = resource.filename('astpretty-2.1.0-py2.py3-none-any.whl')
         subprocess.check_call((*pip, 'install', '-q', whl))
 
@@ -115,7 +115,7 @@ def main() -> int:
         # TODO: replace this with python
         subprocess.check_call(('unzip', '-qq', '-d', tmpdir, args.zip))
 
-        exe = os.path.join(tmpdir, 'bin', 'python')
+        exe = info.python(tmpdir)
 
         _header('--version --version')
         subprocess.check_call((exe, '--version', '--version'))

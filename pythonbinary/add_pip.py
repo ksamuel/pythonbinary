@@ -25,7 +25,7 @@ def main() -> int:
         # TODO: use a python unzip instead
         subprocess.check_call(('unzip', '-qq', '-d', tmpdir, args.zip))
 
-        py = os.path.join(tmpdir, info.bin_dir, info.exe('python'))
+        py = info.python(tmpdir)
         subprocess.check_call((py, '-mensurepip'), stdout=subprocess.DEVNULL)
 
         # TODO: on posixlikes: fix up the shebangs in bin/pip*
