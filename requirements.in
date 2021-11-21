@@ -1,0 +1,6 @@
+# prod
+packaging
+# dev
+covdefaults
+coverage
+pytest
