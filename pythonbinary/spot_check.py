@@ -5,6 +5,7 @@ import os.path
 import subprocess
 import tempfile
 from typing import NamedTuple
+from typing import Sequence
 
 from packaging.markers import Marker
 from packaging.specifiers import Specifier
@@ -59,7 +60,11 @@ MODULES: tuple[Module, ...] = (
     # version specific
 
     # uuid is available on non-windows platform or on windows starting in 3.9
-    Module('_uuid', marker=Marker('sys_platform!="win32"')),
+    Module(
+        '_uuid',
+        specifier=Specifier('>=3.7'),
+        marker=Marker('sys_platform!="win32"'),
+    ),
     Module(
         '_uuid',
         # TODO: which alpha version?
@@ -100,10 +105,10 @@ def _header(s: str) -> None:
     print(f' {s} '.center(79, '='))
 
 
-def main() -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('zip')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     os.environ['PIP_DISABLE_PIP_VERSION_CHECK'] = '1'
 
