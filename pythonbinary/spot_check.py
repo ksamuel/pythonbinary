@@ -6,9 +6,9 @@ import subprocess
 import tempfile
 from typing import NamedTuple
 
-from packaging.version import Version
 from packaging.markers import Marker
 from packaging.specifiers import Specifier
+from packaging.version import Version
 
 
 class PyBI(NamedTuple):
@@ -38,7 +38,7 @@ class Module(NamedTuple):
 
         if self.marker is not None:
             sys_platform = PLATFORM_TAG_TO_SYS_PLATFORM[info.platform]
-            satisfied &= self.marker.evaluate({"sys_platform": sys_platform})
+            satisfied &= self.marker.evaluate({'sys_platform': sys_platform})
 
         return satisfied
 
