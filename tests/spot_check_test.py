@@ -3,8 +3,8 @@ from packaging.markers import Marker
 from packaging.specifiers import Specifier
 from packaging.version import Version
 
+from pythonbinary.pybi import PyBI
 from pythonbinary.spot_check import Module
-from pythonbinary.spot_check import PyBI
 
 
 @pytest.mark.parametrize(

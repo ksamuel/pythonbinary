@@ -8,23 +8,9 @@ from typing import NamedTuple
 
 from packaging.markers import Marker
 from packaging.specifiers import Specifier
-from packaging.version import Version
 
 from pythonbinary import resource
-
-
-class PyBI(NamedTuple):
-    impl: str
-    version: Version
-    platform: str
-
-    @classmethod
-    def parse(cls, s: str) -> PyBI:
-        base, _ = os.path.splitext(os.path.basename(s))
-        impl, version_s, platform = base.split('-', 2)
-        version = Version(version_s)
-
-        return cls(impl, version, platform)
+from pythonbinary.pybi import PyBI
 
 
 class Module(NamedTuple):
@@ -98,14 +84,7 @@ def test_venv(exe: str, info: PyBI) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         subprocess.check_call((exe, '-mvenv', tmpdir))
 
-        if info.platform in {'win32', 'win_amd64'}:
-            bin_dir = 'Scripts'
-            suffix = '.exe'
-        else:
-            bin_dir = 'bin'
-            suffix = ''
-
-        pip = (os.path.join(tmpdir, bin_dir, f'python{suffix}'), '-mpip')
+        pip = (os.path.join(tmpdir, info.bin_dir, info.exe('python')), '-mpip')
         whl = resource.filename('astpretty-2.1.0-py2.py3-none-any.whl')
         subprocess.check_call((*pip, 'install', '-q', whl))
 
@@ -113,7 +92,7 @@ def test_venv(exe: str, info: PyBI) -> None:
         with open(t_py, 'w') as f:
             f.write('x\n')
 
-        cmd = (os.path.join(tmpdir, bin_dir, f'astpretty{suffix}'), t_py)
+        cmd = (os.path.join(tmpdir, info.bin_dir, info.exe('astpretty')), t_py)
         subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
 
 
@@ -146,6 +125,8 @@ def main() -> int:
 
         _header(test_venv.__name__)
         test_venv(exe, info)
+
+        # TODO: test_pip
 
     return 0
 
