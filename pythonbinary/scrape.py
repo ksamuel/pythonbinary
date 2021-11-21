@@ -113,16 +113,29 @@ class Release(NamedTuple):
 def _get_or_create_release(tag: str, *, token: str) -> Release:
     auth = {'Authorization': f'token {token}'}
 
-    url = f'https://api.github.com/repos/ksamuel/pythonbinary/releases/tags/{tag}'  # noqa: E501
-    release = httpx.get(url, headers=auth)
+    get_url = f'https://api.github.com/repos/ksamuel/pythonbinary/releases/tags/{tag}'  # noqa: E501
+    release = httpx.get(get_url, headers=auth)
 
     try:
         release.raise_for_status()
     except httpx.HTTPStatusError:
-        url = 'https://api.github.com/repos/ksamuel/pythonbinary/releases'
+        create_url = 'https://api.github.com/repos/ksamuel/pythonbinary/releases'  # noqa: E501
         data = {'tag_name': tag, 'name': tag}
-        release = httpx.post(url, json=data, headers=auth)
-        release.raise_for_status()
+        release = httpx.post(create_url, json=data, headers=auth)
+        try:
+            release.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            if (
+                e.code == 422 and
+                any(
+                    error['code'] == 'already_exists'
+                    for error in e.response.json()['errors']
+                )
+            ):
+                release = httpx.get(get_url, headers=auth)
+                release.raise_for_status()
+            else:
+                raise
 
     json_response = release.json()
 
@@ -147,8 +160,7 @@ def _upload_artifact(release: Release, filename: str, *, token: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument('out_dir')
-    args = parser.parse_args()
+    parser.parse_args()
 
     # slightly imprecise, should do better platform detection
     platforms = {
@@ -163,9 +175,9 @@ def main() -> int:
     href_parser = GetsAHrefs(URL)
     href_parser.feed(contents)
 
-    os.makedirs(args.out_dir, exist_ok=True)
-
     token = os.environ['GH_TOKEN']
+
+    del href_parser.links[55:]
 
     for link in href_parser.links:
         info = PyBI.parse(link.path)

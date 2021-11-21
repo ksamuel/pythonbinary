@@ -1,0 +1,19 @@
+name: main
+on:
+  push:
+    branches: [main]
+
+jobs:
+  main:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+    - run: python -m venv venv
+    - run: venv/bin/pip install -r requirements.txt
+    - run: venv/bin/python -um pythonbinary.scrape
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
