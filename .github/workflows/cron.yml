@@ -1,10 +1,10 @@
-name: main
+name: cron
 on:
   push:
     branches: [main]
 
 jobs:
-  main:
+  cron:
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
