@@ -4,7 +4,7 @@ import argparse
 import os.path
 import subprocess
 import tempfile
-from typing import Sequence
+from collections.abc import Sequence
 
 from pythonbinary.pybi import PyBI
 
