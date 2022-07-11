@@ -5,7 +5,7 @@ import os.path
 import subprocess
 import tempfile
 from typing import NamedTuple
-from typing import Sequence
+from collections.abc import Sequence
 
 from packaging.markers import Marker
 from packaging.specifiers import Specifier
