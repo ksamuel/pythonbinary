@@ -4,8 +4,8 @@ import argparse
 import os.path
 import subprocess
 import tempfile
-from typing import NamedTuple
 from collections.abc import Sequence
+from typing import NamedTuple
 
 from packaging.markers import Marker
 from packaging.specifiers import Specifier
