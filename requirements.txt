@@ -9,7 +9,7 @@ attrs==21.2.0
 certifi==2021.10.8
 charset-normalizer==2.0.7
 covdefaults==2.0.0
-coverage==6.1.2
+coverage==6.5.0
 h11==0.12.0
 httpcore==0.14.3
 httpx==0.21.1

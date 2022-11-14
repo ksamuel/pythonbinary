@@ -3,5 +3,5 @@ httpx
 packaging
 # dev
 covdefaults
-coverage
+coverage>=6.5
 pytest
